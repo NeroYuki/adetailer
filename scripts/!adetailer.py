@@ -39,6 +39,7 @@ from adetailer import (
     get_models,
     mediapipe_predict,
     ultralytics_predict,
+    groundingdino_predict,
 )
 from adetailer.args import (
     BBOX_SORTBY,
@@ -813,10 +814,18 @@ class AfterDetailerScript(scripts.Script):
         ad_prompts, ad_negatives = self.get_prompt(p, args)
 
         is_mediapipe = args.is_mediapipe()
+        is_groundingdino = args.is_groundingdino()
 
         if is_mediapipe:
             pred = mediapipe_predict(args.ad_model, pp.image, args.ad_confidence)
-
+        elif is_groundingdino:
+            pred = groundingdino_predict(
+                args.ad_model,
+                image=pp.image,
+                # split ad_model_classes by comma and trim whitespace
+                text_labels= [x.strip() for x in args.ad_model_classes.split(",") if x.strip()],
+                confidence=args.ad_confidence,
+            )
         else:
             with change_torch_load():
                 ad_model = self.get_ad_model(args.ad_model)

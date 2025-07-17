@@ -92,7 +92,7 @@ def on_generate_click(state: dict, *values: Any):
 
 
 def on_ad_model_update(model: str):
-    if "-world" in model:
+    if "-world" or "grounding-dino" in model:
         return gr.update(
             visible=True,
             placeholder="Comma separated class names to detect, ex: 'person,cat'. default: COCO 80 classes",

@@ -105,6 +105,10 @@ def get_models(
         }
     )
 
+    models.update({
+        "groundingdino": "IDEA-Research/grounding-dino-tiny",
+    })
+
     invalid_keys = [k for k, v in models.items() if v == "INVALID"]
     for key in invalid_keys:
         models.pop(key)

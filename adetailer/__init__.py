@@ -3,6 +3,7 @@ from .args import ALL_ARGS, ADetailerArgs
 from .common import PredictOutput, get_models
 from .mediapipe import mediapipe_predict
 from .ultralytics import ultralytics_predict
+from .groundingdino import groundingdino_predict
 
 ADETAILER = "ADetailer"
 
@@ -15,4 +16,5 @@ __all__ = [
     "get_models",
     "mediapipe_predict",
     "ultralytics_predict",
+    "groundingdino_predict",
 ]
