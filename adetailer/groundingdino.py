@@ -1,19 +1,22 @@
+from __future__ import annotations
+
 import torch
 import numpy as np
 from PIL import Image, ImageDraw
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 
 from adetailer import PredictOutput
-from adetailer.common import create_bbox_from_mask
+from adetailer.common import create_mask_from_bbox
+
 
 def groundingdino_predict(
     inp_model_id: str,
     image: Image.Image,
     text_labels: list[str],
-    confidence: float = 0.3
+    confidence: float = 0.3,
 ) -> PredictOutput:
     """
-    Similar to the mediapipe detection workflow, this function:
+    GroundingDINO detection workflow:
       1. Loads a GroundingDINO model via Hugging Face.
       2. Processes an image with specified text labels.
       3. Gathers bounding boxes above the given confidence threshold.
@@ -24,51 +27,81 @@ def groundingdino_predict(
     }
     model_id = mapping.get(inp_model_id, inp_model_id)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    processor = AutoProcessor.from_pretrained(model_id)
-    model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)
+    
+    try:
+        processor = AutoProcessor.from_pretrained(model_id)
+        model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(device)
+    except Exception as e:
+        print(f"[-] ADetailer: Failed to load GroundingDINO model: {e}")
+        return PredictOutput()
 
-    # Convert the PIL Image to a torch-ready format
-    print(text_labels)
-    arr = np.array(image)
+    # Validate text_labels
+    if not text_labels or not any(text_labels):
+        print("[-] ADetailer: No text labels provided for GroundingDINO")
+        return PredictOutput()
+
+    print(f"[+] ADetailer: GroundingDINO detecting: {text_labels}")
+
+    # Process the image with text labels
     inputs = processor(
         images=image,
-        text=[["yellow ascot"]],  # text_labels should be a list of label strings
+        text=text_labels,
         return_tensors="pt"
     ).to(device)
 
     with torch.no_grad():
         outputs = model(**inputs)
 
-    # Use post_process_grounded_object_detection from the processor to get boxes & scores
-    results = processor.post_process_grounded_object_detection(outputs, threshold=confidence)
+    # Post-process to get boxes and scores
+    img_width, img_height = image.size
+    results = processor.post_process_grounded_object_detection(
+        outputs,
+        inputs.input_ids,
+        threshold=confidence,
+        target_sizes=torch.tensor([[img_height, img_width]])
+    )
+    
     result = results[0] if results else None
 
-    if not result:
+    if not result or "boxes" not in result or len(result["boxes"]) == 0:
         return PredictOutput()
 
-    all_bboxes = []
-    img_width, img_height = image.size
-    for box, score, label_idx in zip(result["boxes"], result["scores"], result["labels"]):
+    # Collect all valid detections with their scores and areas
+    detections = []
+    
+    for box, score in zip(result["boxes"], result["scores"]):
         if score.item() >= confidence:
+            # Boxes are in format [x_min, y_min, x_max, y_max]
             x1, y1, x2, y2 = box.tolist()
-            # Clip to image size just in case
-            x1, x2 = sorted([max(0, x1), min(img_width, x2)])
-            y1, y2 = sorted([max(0, y1), min(img_height, y2)])
-            all_bboxes.append([x1, y1, x2, y2])
+            # Clip to image size
+            x1 = max(0, min(img_width, x1))
+            y1 = max(0, min(img_height, y1))
+            x2 = max(0, min(img_width, x2))
+            y2 = max(0, min(img_height, y2))
+            
+            # Ensure valid bounding box
+            if x2 > x1 and y2 > y1:
+                area = (x2 - x1) * (y2 - y1)
+                detections.append({
+                    "bbox": [x1, y1, x2, y2],
+                    "score": score.item(),
+                    "area": area
+                })
 
-    if not all_bboxes:
+    if not detections:
         return PredictOutput()
+
+    # Sort by area (largest first) and keep all detections
+    detections.sort(key=lambda d: d["area"], reverse=True)
+    
+    # Extract bboxes in sorted order
+    all_bboxes = [d["bbox"] for d in detections]
 
     # Create masks from bounding boxes
-    masks = create_bbox_from_mask([Image.new("L", image.size, "black")], image.size)
-    for i, bbox in enumerate(all_bboxes):
-        # Overwrite each mask with a filled rectangle
-        x1, y1, x2, y2 = bbox
-        draw = ImageDraw.Draw(masks[0])
-        draw.rectangle([x1, y1, x2, y2], fill="white")
+    masks = create_mask_from_bbox(all_bboxes, image.size)
 
-    # Generate preview image
-    preview = image.copy()
+    # Generate preview image with bounding boxes
+    preview = image.copy().convert("RGB")
     preview_draw = ImageDraw.Draw(preview)
     for bbox in all_bboxes:
         preview_draw.rectangle(bbox, outline="red", width=2)
