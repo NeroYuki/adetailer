@@ -92,12 +92,29 @@ def on_generate_click(state: dict, *values: Any):
 
 
 def on_ad_model_update(model: str):
-    if "-world" or "grounding-dino" in model:
-        return gr.update(
-            visible=True,
-            placeholder="Comma separated class names to detect, ex: 'person,cat'. default: COCO 80 classes",
-        )
-    return gr.update(visible=False, placeholder="")
+    model_lower = model.lower()
+    
+    # Show model_classes for yolo-world, groundingdino, and florence2
+    show_classes = "-world" in model_lower or "grounding" in model_lower or "florence" in model_lower
+    
+    if show_classes:
+        if "florence" in model_lower:
+            classes_update = gr.update(
+                visible=True,
+                placeholder="Text prompt for Florence2 detection, ex: 'a person' or 'person, cat'",
+            )
+        else:
+            classes_update = gr.update(
+                visible=True,
+                placeholder="Comma separated class names to detect, ex: 'person,cat'. default: COCO 80 classes",
+            )
+    else:
+        classes_update = gr.update(visible=False, placeholder="")
+    
+    # Show florence2_task only for florence2 models
+    florence2_task_update = gr.update(visible="florence" in model_lower)
+    
+    return classes_update, florence2_task_update
 
 
 def on_cn_model_update(cn_model_name: str):
@@ -207,12 +224,22 @@ def one_ui_group(n: int, is_img2img: bool, webui_info: WebuiInfo):
                 elem_id=eid("ad_classes"),
             )
 
-            w.ad_model.change(
-                on_ad_model_update,
-                inputs=w.ad_model,
-                outputs=w.ad_model_classes,
-                queue=False,
+        with gr.Row():
+            w.ad_florence2_task = gr.Radio(
+                label="Florence2 task" + suffix(n),
+                choices=["<CAPTION_TO_PHRASE_GROUNDING>", "<OPEN_VOCABULARY_DETECTION>", "<REFERRING_EXPRESSION_SEGMENTATION>"],
+                value="<CAPTION_TO_PHRASE_GROUNDING>",
+                visible=False,
+                elem_id=eid("ad_florence2_task"),
+                info="Phrase Grounding/Open Vocabulary: bounding boxes | Segmentation: masks",
             )
+
+        w.ad_model.change(
+            on_ad_model_update,
+            inputs=w.ad_model,
+            outputs=[w.ad_model_classes, w.ad_florence2_task],
+            queue=False,
+        )
 
     gr.HTML("<br>")
 

@@ -63,9 +63,9 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
     ad_mask_k_largest: NonNegativeInt = 0
     ad_mask_min_ratio: confloat(ge=0.0, le=1.0) = 0.0
     ad_mask_max_ratio: confloat(ge=0.0, le=1.0) = 1.0
-    ad_dilate_erode: int = 4
     ad_x_offset: int = 0
     ad_y_offset: int = 0
+    ad_dilate_erode: int = 4
     ad_mask_merge_invert: Literal["None", "Merge", "Merge and Invert"] = "None"
     ad_mask_blur: NonNegativeInt = 4
     ad_denoising_strength: confloat(ge=0.0, le=1.0) = 0.4
@@ -95,6 +95,7 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
     ad_controlnet_weight: confloat(ge=0.0, le=1.0) = 1.0
     ad_controlnet_guidance_start: confloat(ge=0.0, le=1.0) = 0.0
     ad_controlnet_guidance_end: confloat(ge=0.0, le=1.0) = 1.0
+    ad_florence2_task: Literal["<CAPTION_TO_PHRASE_GROUNDING>", "<OPEN_VOCABULARY_DETECTION>", "<REFERRING_EXPRESSION_SEGMENTATION>"] = "<CAPTION_TO_PHRASE_GROUNDING>"
     is_api: bool = True
 
     @validator("is_api", pre=True)
@@ -197,6 +198,7 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
         ppop("ADetailer ControlNet weight", cond=1.0)
         ppop("ADetailer ControlNet guidance start", cond=0.0)
         ppop("ADetailer ControlNet guidance end", cond=1.0)
+        ppop("ADetailer Florence2 task", cond="<CAPTION_TO_PHRASE_GROUNDING>")
 
         if suffix:
             p = {k + suffix: v for k, v in p.items()}
@@ -208,6 +210,9 @@ class ADetailerArgs(BaseModel, extra=Extra.forbid):
     
     def is_groundingdino(self) -> bool:
         return "groundingdino" in self.ad_model.lower()
+    
+    def is_florence2(self) -> bool:
+        return "florence" in self.ad_model.lower()
 
     def need_skip(self) -> bool:
         return self.ad_model == "None" or self.ad_tab_enable is False
@@ -255,6 +260,7 @@ _all_args = [
     ("ad_controlnet_weight", "ADetailer ControlNet weight"),
     ("ad_controlnet_guidance_start", "ADetailer ControlNet guidance start"),
     ("ad_controlnet_guidance_end", "ADetailer ControlNet guidance end"),
+    ("ad_florence2_task", "ADetailer Florence2 task"),
 ]
 
 _args = [Arg(*args) for args in _all_args]

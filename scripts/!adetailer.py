@@ -40,6 +40,7 @@ from adetailer import (
     mediapipe_predict,
     ultralytics_predict,
     groundingdino_predict,
+    florence2_predict,
 )
 from adetailer.args import (
     BBOX_SORTBY,
@@ -815,6 +816,7 @@ class AfterDetailerScript(scripts.Script):
 
         is_mediapipe = args.is_mediapipe()
         is_groundingdino = args.is_groundingdino()
+        is_florence2 = args.is_florence2()
 
         if is_mediapipe:
             pred = mediapipe_predict(args.ad_model, pp.image, args.ad_confidence)
@@ -824,6 +826,14 @@ class AfterDetailerScript(scripts.Script):
                 image=pp.image,
                 # split ad_model_classes by comma and trim whitespace
                 text_labels= [x.strip() for x in args.ad_model_classes.split(",") if x.strip()],
+                confidence=args.ad_confidence,
+            )
+        elif is_florence2:
+            pred = florence2_predict(
+                args.ad_model,
+                image=pp.image,
+                task=args.ad_florence2_task,
+                text_input=args.ad_model_classes if args.ad_model_classes else None,
                 confidence=args.ad_confidence,
             )
         else:

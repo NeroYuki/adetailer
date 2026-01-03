@@ -109,6 +109,13 @@ def get_models(
         "groundingdino": "IDEA-Research/grounding-dino-tiny",
     })
 
+    models.update({
+        "florence-2-base": "microsoft/Florence-2-base",
+        "florence-2-large": "microsoft/Florence-2-large",
+        "florence-2-base-ft": "microsoft/Florence-2-base-ft",
+        "florence-2-large-ft": "microsoft/Florence-2-large-ft",
+    })
+
     invalid_keys = [k for k, v in models.items() if v == "INVALID"]
     for key in invalid_keys:
         models.pop(key)

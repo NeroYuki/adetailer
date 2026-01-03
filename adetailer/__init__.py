@@ -4,6 +4,7 @@ from .common import PredictOutput, get_models
 from .mediapipe import mediapipe_predict
 from .ultralytics import ultralytics_predict
 from .groundingdino import groundingdino_predict
+from .florence2 import florence2_predict
 
 ADETAILER = "ADetailer"
 
@@ -17,4 +18,5 @@ __all__ = [
     "mediapipe_predict",
     "ultralytics_predict",
     "groundingdino_predict",
+    "florence2_predict",
 ]
